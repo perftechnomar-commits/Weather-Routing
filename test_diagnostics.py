@@ -24,6 +24,16 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertEqual(client.latest_plan('1234567'), {'waypoints': []})
         self.assertEqual(client.session.request.call_args.kwargs['headers'], {'Authorization': 'Bearer private-token'})
 
+    def test_observed_camelcase_success_and_plan(self):
+        client = self.client({'accessToken': 'private-token', 'expiresIn': 3600, 'tokenType': 'Bearer'})
+        client.authenticate()
+        self.assertEqual(client.token, 'private-token')
+        self.assertIsNotNone(client.expires_at)
+        self.assertNotIn('private-token', json.dumps(client.auth_diagnostics))
+        client.session.request.return_value.json.return_value = {'waypoints': []}
+        self.assertEqual(client.latest_plan('1234567'), {'waypoints': []})
+        self.assertEqual(client.session.request.call_args.kwargs['headers'], {'Authorization': 'Bearer private-token'})
+
     def test_nested_token_not_assumed(self):
         client = self.client({'data': {'accessToken': 'opaque-secret'}})
         with self.assertRaises(APIError) as caught:

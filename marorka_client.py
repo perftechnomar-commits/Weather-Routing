@@ -105,7 +105,7 @@ class MarorkaClient:
                 schema = {'type': 'non-JSON', 'body': '[HIDDEN]'}
             content_type = response.headers.get('Content-Type', '').split(';')[0].strip().lower()
             self.auth_diagnostics = {
-                'diagnostic_version': 2,
+                'diagnostic_version': 3,
                 'endpoint': '/api/auth/online/token',
                 'http_status': response.status_code,
                 'content_type': content_type if content_type in (
@@ -149,16 +149,22 @@ class MarorkaClient:
             raise APIError('Token request', None, 'Username and password are required.')
         body = self._request('POST', '/api/auth/online/token', 'Token request',
                              json={'username': self.username, 'password': self.password})
-        token = body.get('access_token') if isinstance(body, dict) else None
+        token = None
+        if isinstance(body, dict):
+            for key in ('accessToken', 'access_token'):
+                candidate = body.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    token = candidate
+                    break
         if not isinstance(token, str) or not token.strip():
             raise APIError('Token request', self.auth_diagnostics['http_status'],
-                           'Response did not contain a nonempty top-level access_token. See the safe authentication diagnostics.',
+                           'Response did not contain a nonempty top-level accessToken or access_token. See the safe authentication diagnostics.',
                            self.auth_diagnostics)
         self.token = token
         self.expires_at = None
-        # Only use standard expires_in when supplied; never assume a lifetime.
+        # Accept the observed camelCase and documented snake_case lifetime fields.
         try:
-            lifetime = float(body.get('expires_in'))
+            lifetime = float(body.get('expiresIn', body.get('expires_in')))
             if lifetime > 0:
                 self.expires_at = time.monotonic() + lifetime
         except (ValueError, TypeError):

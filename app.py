@@ -7,7 +7,7 @@ from marorka_client import APIError, MarorkaClient, fetch_fleet, parse_fleet
 
 st.set_page_config(page_title='Marorka Passage Plan Test', layout='wide')
 st.title('Marorka Weather Routing — connection test')
-st.caption('Diagnostic build 2 — response values are hidden.')
+st.caption('Diagnostic build 3 — response values are hidden.')
 st.write('First test login. Then retrieve one vessel or upload a fleet CSV.')
 st.caption('Credentials and tokens are not included in downloads or cached. Raw plan data is preserved without assuming its schema.')
 

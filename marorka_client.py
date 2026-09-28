@@ -15,9 +15,43 @@ class ExplicitAuth(AuthBase):
 
 
 class APIError(Exception):
-    def __init__(self, stage, status, message):
+    def __init__(self, stage, status, message, diagnostics=None):
         self.stage, self.status = stage, status
+        self.diagnostics = diagnostics
         super().__init__(f'{stage}: ' + (f'HTTP {status}. ' if status else '') + message)
+
+
+# Only known schema labels are shown. Arbitrary keys can themselves contain secrets.
+_SCHEMA_KEYS = {
+    'access_token', 'accessToken', 'AccessToken', 'token', 'Token', 'bearerToken',
+    'refresh_token', 'refreshToken', 'id_token', 'token_type', 'tokenType',
+    'expires_in', 'expiresIn', 'expires', 'expiration', 'expires_at',
+    'data', 'Data', 'result', 'Result', 'response', 'Response', 'body',
+    'auth', 'authentication', 'value', 'Value', 'payload',
+    'success', 'Success', 'status', 'statusCode', 'code', 'error', 'errors',
+    'message', 'Message', 'detail', 'title', 'error_description',
+    'username', 'password', 'email', 'user', 'name', 'roles', 'scope',
+}
+
+
+def response_structure(value, depth=0):
+    """Schema only: never return response scalar values or arbitrary key text."""
+    if depth >= 8:
+        return {'type': type(value).__name__, 'truncated': True}
+    if isinstance(value, dict):
+        fields = []
+        for i, (key, item) in enumerate(value.items()):
+            if i >= 50:
+                break
+            fields.append({'field': key if key in _SCHEMA_KEYS else f'[unrecognized field {i + 1}]',
+                           'schema': response_structure(item, depth + 1)})
+        return {'type': 'object', 'fields': fields, 'truncated': len(value) > 50}
+    if isinstance(value, list):
+        return {'type': 'array', 'sample_items': [response_structure(v, depth + 1) for v in value[:3]],
+                'truncated': len(value) > 3}
+    if isinstance(value, str):
+        return {'type': 'string', 'empty_or_whitespace': not bool(value.strip()), 'value': '[HIDDEN]'}
+    return {'type': 'null' if value is None else type(value).__name__, 'value': '[HIDDEN]'}
 
 
 class MarorkaClient:
@@ -26,6 +60,7 @@ class MarorkaClient:
         self.password = password  # Preserve password exactly, including whitespace.
         self.token = None
         self.expires_at = None
+        self.auth_diagnostics = None
         self.session = requests.Session()
         self.session.auth = ExplicitAuth()
 
@@ -62,6 +97,23 @@ class MarorkaClient:
             raise APIError(stage, None, 'Connection or response timed out.') from None
         except requests.exceptions.RequestException as exc:
             raise APIError(stage, None, f'Network request failed ({type(exc).__name__}).') from None
+        auth_request = stage == 'Token request'
+        if auth_request:
+            try:
+                schema = response_structure(response.json())
+            except ValueError:
+                schema = {'type': 'non-JSON', 'body': '[HIDDEN]'}
+            content_type = response.headers.get('Content-Type', '').split(';')[0].strip().lower()
+            self.auth_diagnostics = {
+                'diagnostic_version': 2,
+                'endpoint': '/api/auth/online/token',
+                'http_status': response.status_code,
+                'content_type': content_type if content_type in (
+                    'application/json', 'application/problem+json', 'text/plain', 'text/html'
+                ) else 'other or absent',
+                'response_structure': schema,
+                'note': 'All scalar values and unrecognized field names are hidden. HTTP success alone does not confirm authentication.',
+            }
         if not 200 <= response.status_code < 300:
             explanation = {
                 401: 'Authentication was rejected. This does not identify whether credentials, account configuration, or the authentication environment caused it.',
@@ -73,7 +125,7 @@ class MarorkaClient:
                 explanation = 'Redirect received; not followed. Confirm the documented endpoint.'
             try:
                 body = response.json()
-                if isinstance(body, dict):
+                if isinstance(body, dict) and not auth_request:
                     for key in ('message', 'error_description', 'detail'):
                         value = body.get(key)
                         if isinstance(value, str) and value:
@@ -81,22 +133,27 @@ class MarorkaClient:
                             break
             except ValueError:
                 pass
-            raise APIError(stage, response.status_code, explanation)
+            raise APIError(stage, response.status_code, explanation,
+                           self.auth_diagnostics if auth_request else None)
         if not response.content:
             return None
         try:
             return response.json()
         except ValueError:
-            raise APIError(stage, response.status_code, 'The response was not valid JSON.') from None
+            raise APIError(stage, response.status_code, 'The response was not valid JSON.',
+                           self.auth_diagnostics if auth_request else None) from None
 
     def authenticate(self):
+        self.token = self.expires_at = self.auth_diagnostics = None
         if not self.username or not self.password:
             raise APIError('Token request', None, 'Username and password are required.')
         body = self._request('POST', '/api/auth/online/token', 'Token request',
                              json={'username': self.username, 'password': self.password})
         token = body.get('access_token') if isinstance(body, dict) else None
         if not isinstance(token, str) or not token.strip():
-            raise APIError('Token request', 200, 'Response did not contain a nonempty access_token.')
+            raise APIError('Token request', self.auth_diagnostics['http_status'],
+                           'Response did not contain a nonempty top-level access_token. See the safe authentication diagnostics.',
+                           self.auth_diagnostics)
         self.token = token
         self.expires_at = None
         # Only use standard expires_in when supplied; never assume a lifetime.

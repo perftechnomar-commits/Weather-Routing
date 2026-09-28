@@ -7,6 +7,7 @@ from marorka_client import APIError, MarorkaClient, fetch_fleet, parse_fleet
 
 st.set_page_config(page_title='Marorka Passage Plan Test', layout='wide')
 st.title('Marorka Weather Routing — connection test')
+st.caption('Diagnostic build 2 — response values are hidden.')
 st.write('First test login. Then retrieve one vessel or upload a fleet CSV.')
 st.caption('Credentials and tokens are not included in downloads or cached. Raw plan data is preserved without assuming its schema.')
 
@@ -29,6 +30,7 @@ with st.form('connection', clear_on_submit=True):
 
 if submitted:
     st.session_state.pop('results', None)
+    st.session_state.pop('auth_diagnostics', None)
     try:
         rows = []
         if mode == 'Retrieve one vessel':
@@ -42,6 +44,7 @@ if submitted:
         with MarorkaClient(username, password) as client:
             with st.spinner('Requesting access token…'):
                 client.authenticate()
+            st.session_state['auth_diagnostics'] = client.auth_diagnostics
             st.success('Token generation succeeded. Token is kept private.')
             if rows:
                 bar = st.progress(0.0)
@@ -49,8 +52,19 @@ if submitted:
                 st.session_state['results'] = results
     except (APIError, ValueError) as exc:
         st.error(str(exc))
+        if isinstance(exc, APIError) and exc.diagnostics:
+            st.session_state['auth_diagnostics'] = exc.diagnostics
     finally:
         password = None
+
+diagnostics = st.session_state.get('auth_diagnostics')
+if diagnostics:
+    with st.expander('Safe authentication diagnostics', expanded=True):
+        st.caption('Share this report to investigate the response format. It contains no response values, credentials, tokens, cookies, or headers.')
+        st.json(diagnostics)
+        st.download_button('Download safe authentication diagnostics',
+                           json.dumps(diagnostics, indent=2),
+                           'marorka_auth_diagnostics.json', 'application/json')
 
 results = st.session_state.get('results')
 if results:

@@ -38,6 +38,9 @@ if __name__ == '__main__':
         raise SystemExit(main())
     except (APIError, ValueError, OSError) as exc:
         print('FAILED:', exc)
+        if isinstance(exc, APIError) and exc.diagnostics:
+            print('Safe authentication diagnostics:')
+            print(json.dumps(exc.diagnostics, indent=2))
         raise SystemExit(1)
     except (KeyboardInterrupt, EOFError):
         print('\nCancelled.')

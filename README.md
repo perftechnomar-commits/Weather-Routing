@@ -1,12 +1,14 @@
-## Diagnostic build 2
+## Diagnostic build 3
 
-Replace `app.py`, `marorka_client.py`, and `test_connection.py` in your repository with this batch. Requirements are unchanged.
+Replace the repository files with this batch. Requirements are unchanged.
 
-Run **Test authentication only** again. The **Safe authentication diagnostics** panel shows HTTP status and a bounded response schema, including recognized field names, nesting and value types. Download `marorka_auth_diagnostics.json` and share that file for analysis. All scalar response values and unfamiliar field names are hidden; raw response bodies and headers are never included in authentication diagnostics. This also applies to HTTP error responses.
+The supplied live diagnostic report identified a nonempty top-level `accessToken`, with `expiresIn` and `tokenType`. The client now accepts `accessToken` / `expiresIn` as well as the previously documented `access_token` / `expires_in`. It continues using the documented Bearer authorization header for vessel requests. Nested or unrelated fields are not guessed as tokens.
 
-A 200 response alone does not prove successful login. This build still requires the documented top-level `access_token`; it does not guess that a different response field is a usable token. If the response schema differs, use the report to determine the next correction. The form clears after submission as before.
+Run **Test authentication only** again, then **Retrieve one vessel** with an authorized vessel IMO. The form clears after submission as before, so re-enter credentials for the vessel test unless using Streamlit Secrets.
 
-Validated with simulated responses, not with live account credentials.
+The **Safe authentication diagnostics** panel remains available. All scalar response values and unfamiliar field names are hidden; raw response bodies and headers are never included in authentication diagnostics.
+
+Validated with simulated responses matching the supplied diagnostic schema. Live vessel access remains untested.
 
 # Marorka Python connection test
 

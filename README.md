@@ -1,3 +1,13 @@
+## Diagnostic build 2
+
+Replace `app.py`, `marorka_client.py`, and `test_connection.py` in your repository with this batch. Requirements are unchanged.
+
+Run **Test authentication only** again. The **Safe authentication diagnostics** panel shows HTTP status and a bounded response schema, including recognized field names, nesting and value types. Download `marorka_auth_diagnostics.json` and share that file for analysis. All scalar response values and unfamiliar field names are hidden; raw response bodies and headers are never included in authentication diagnostics. This also applies to HTTP error responses.
+
+A 200 response alone does not prove successful login. This build still requires the documented top-level `access_token`; it does not guess that a different response field is a usable token. If the response schema differs, use the report to determine the next correction. The form clears after submission as before.
+
+Validated with simulated responses, not with live account credentials.
+
 # Marorka Python connection test
 
 A separate diagnostic app; does not modify existing apps. No actual credentials are included.

@@ -9,8 +9,12 @@ from preview_renderer import render_html_dashboard
 APP_DIR = Path(__file__).resolve().parent
 SNAPSHOT = APP_DIR / '20261116_Technomar_Approved_Routes.csv'
 
-st.set_page_config(page_title='Weather Routing | Technomar', page_icon='🧭',
-                   layout='wide', initial_sidebar_state='collapsed')
+st.set_page_config(
+    page_title="Weather Routing | Technomar",
+    page_icon=str(APP_DIR / "technomar.png"),
+    layout="wide",
+    initial_sidebar_state="collapsed",)
+
 st.markdown('''<style>
 html,body {margin:0!important;padding:0!important;overflow:hidden!important;}
 .stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"] {

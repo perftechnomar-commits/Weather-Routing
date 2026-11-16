@@ -16385,11 +16385,11 @@ def compose_dashboard(full, audit, master=None):
     html=html.replace('Offline browser preview.<br>No login or API calls required.',
                       'Interactive Streamlit dashboard.<br>Filters run instantly in this view.')
     html=html.replace('This standalone preview uses the bundled data. The Streamlit app adds CSV replacement, fleet-mapping replacement, endpoint maps and the existing API connection test.',
-                      'Use Data & API Tools above for source-file replacement, endpoint maps, detailed analysis and connection testing. Chart selections here do not modify those tools.')
+                      'Data is prepared by the Python engine and displayed in this dashboard. Replace the deployed CSV files to update the source extraction or fleet mapping.')
     if master is None or not master['IMO'].eq('').any():
         html=html.replace('Istanbul Express has no IMO in the master and is categorised using its exact name.','')
     return html
 
 
 def render_html_dashboard(full,audit,master=None):
-    components.html(compose_dashboard(full,audit,master),height=1100,scrolling=True)
+    components.html(compose_dashboard(full,audit,master),height=900,scrolling=True)
